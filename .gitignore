@@ -1,0 +1,38 @@
+# Android
+/build/
+*.hprof
+*.pyc
+*.pyo
+
+# Gradle
+.gradle/
+build/
+local.properties
+
+# IDE
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+
+# Logs
+*.txt
+*.log
+
+# Databases
+*.db
+*.db-shm
+*.db-wal
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Agent files
+.agent/
+.gemini/
+brain/
+implementation_plan.md
+task.md
+walkthrough.md
