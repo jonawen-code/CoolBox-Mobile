@@ -1,0 +1,258 @@
+[
+    {
+        "merged": "com.example.coolbox.mobile.app-merged_res-54:/drawable_border_expired.xml.flat",
+        "source": "com.example.coolbox.mobile.app-main-56:/drawable/border_expired.xml"
+    },
+    {
+        "merged": "com.example.coolbox.mobile.app-merged_res-54:/mipmap-mdpi_ic_launcher.webp.flat",
+        "source": "com.example.coolbox.mobile.app-main-56:/mipmap-mdpi/ic_launcher.webp"
+    },
+    {
+        "merged": "com.example.coolbox.mobile.app-merged_res-54:/drawable_ic_food_grapes.png.flat",
+        "source": "com.example.coolbox.mobile.app-main-56:/drawable/ic_food_grapes.png"
+    },
+    {
+        "merged": "com.example.coolbox.mobile.app-merged_res-54:/drawable_ic_food_pepper.png.flat",
+        "source": "com.example.coolbox.mobile.app-main-56:/drawable/ic_food_pepper.png"
+    },
+    {
+        "merged": "com.example.coolbox.mobile.app-merged_res-54:/mipmap-xxhdpi_ic_launcher_round.webp.flat",
+        "source": "com.example.coolbox.mobile.app-main-56:/mipmap-xxhdpi/ic_launcher_round.webp"
+    },
+    {
+        "merged": "com.example.coolbox.mobile.app-merged_res-54:/drawable_ic_launcher.png.flat",
+        "source": "com.example.coolbox.mobile.app-main-56:/drawable/ic_launcher.png"
+    },
+    {
+        "merged": "com.example.coolbox.mobile.app-merged_res-54:/drawable_ic_food_ribs.png.flat",
+        "source": "com.example.coolbox.mobile.app-main-56:/drawable/ic_food_ribs.png"
+    },
+    {
+        "merged": "com.example.coolbox.mobile.app-merged_res-54:/drawable_ic_food_dumpling.png.flat",
+        "source": "com.example.coolbox.mobile.app-main-56:/drawable/ic_food_dumpling.png"
+    },
+    {
+        "merged": "com.example.coolbox.mobile.app-merged_res-54:/drawable_ic_food_icecream.png.flat",
+        "source": "com.example.coolbox.mobile.app-main-56:/drawable/ic_food_icecream.png"
+    },
+    {
+        "merged": "com.example.coolbox.mobile.app-merged_res-54:/mipmap-anydpi-v26_ic_launcher_round.xml.flat",
+        "source": "com.example.coolbox.mobile.app-main-56:/mipmap-anydpi-v26/ic_launcher_round.xml"
+    },
+    {
+        "merged": "com.example.coolbox.mobile.app-merged_res-54:/drawable_cat_meat.png.flat",
+        "source": "com.example.coolbox.mobile.app-main-56:/drawable/cat_meat.png"
+    },
+    {
+        "merged": "com.example.coolbox.mobile.app-merged_res-54:/drawable_ic_food_apple.png.flat",
+        "source": "com.example.coolbox.mobile.app-main-56:/drawable/ic_food_apple.png"
+    },
+    {
+        "merged": "com.example.coolbox.mobile.app-merged_res-54:/drawable_cat_snack.png.flat",
+        "source": "com.example.coolbox.mobile.app-main-56:/drawable/cat_snack.png"
+    },
+    {
+        "merged": "com.example.coolbox.mobile.app-merged_res-54:/drawable_ic_food_fish.png.flat",
+        "source": "com.example.coolbox.mobile.app-main-56:/drawable/ic_food_fish.png"
+    },
+    {
+        "merged": "com.example.coolbox.mobile.app-merged_res-54:/mipmap-xxxhdpi_ic_launcher_round.webp.flat",
+        "source": "com.example.coolbox.mobile.app-main-56:/mipmap-xxxhdpi/ic_launcher_round.webp"
+    },
+    {
+        "merged": "com.example.coolbox.mobile.app-merged_res-54:/drawable_ic_food_blueberries.png.flat",
+        "source": "com.example.coolbox.mobile.app-main-56:/drawable/ic_food_blueberries.png"
+    },
+    {
+        "merged": "com.example.coolbox.mobile.app-merged_res-54:/drawable_ic_food_milk.png.flat",
+        "source": "com.example.coolbox.mobile.app-main-56:/drawable/ic_food_milk.png"
+    },
+    {
+        "merged": "com.example.coolbox.mobile.app-merged_res-54:/mipmap-xhdpi_ic_launcher.webp.flat",
+        "source": "com.example.coolbox.mobile.app-main-56:/mipmap-xhdpi/ic_launcher.webp"
+    },
+    {
+        "merged": "com.example.coolbox.mobile.app-merged_res-54:/mipmap-mdpi_ic_launcher_round.webp.flat",
+        "source": "com.example.coolbox.mobile.app-main-56:/mipmap-mdpi/ic_launcher_round.webp"
+    },
+    {
+        "merged": "com.example.coolbox.mobile.app-merged_res-54:/drawable_ic_food_egg.png.flat",
+        "source": "com.example.coolbox.mobile.app-main-56:/drawable/ic_food_egg.png"
+    },
+    {
+        "merged": "com.example.coolbox.mobile.app-merged_res-54:/drawable_ic_food_butter.png.flat",
+        "source": "com.example.coolbox.mobile.app-main-56:/drawable/ic_food_butter.png"
+    },
+    {
+        "merged": "com.example.coolbox.mobile.app-merged_res-54:/drawable_cat_veg.png.flat",
+        "source": "com.example.coolbox.mobile.app-main-56:/drawable/cat_veg.png"
+    },
+    {
+        "merged": "com.example.coolbox.mobile.app-merged_res-54:/drawable_ic_food_cola.png.flat",
+        "source": "com.example.coolbox.mobile.app-main-56:/drawable/ic_food_cola.png"
+    },
+    {
+        "merged": "com.example.coolbox.mobile.app-merged_res-54:/drawable_ic_food_cheese.png.flat",
+        "source": "com.example.coolbox.mobile.app-main-56:/drawable/ic_food_cheese.png"
+    },
+    {
+        "merged": "com.example.coolbox.mobile.app-merged_res-54:/drawable_ic_food_durian.png.flat",
+        "source": "com.example.coolbox.mobile.app-main-56:/drawable/ic_food_durian.png"
+    },
+    {
+        "merged": "com.example.coolbox.mobile.app-merged_res-54:/drawable_ic_food_juice.png.flat",
+        "source": "com.example.coolbox.mobile.app-main-56:/drawable/ic_food_juice.png"
+    },
+    {
+        "merged": "com.example.coolbox.mobile.app-merged_res-54:/drawable_ic_launcher_foreground.xml.flat",
+        "source": "com.example.coolbox.mobile.app-main-56:/drawable/ic_launcher_foreground.xml"
+    },
+    {
+        "merged": "com.example.coolbox.mobile.app-merged_res-54:/drawable_ic_food_pear.png.flat",
+        "source": "com.example.coolbox.mobile.app-main-56:/drawable/ic_food_pear.png"
+    },
+    {
+        "merged": "com.example.coolbox.mobile.app-merged_res-54:/drawable_ic_food_mango.png.flat",
+        "source": "com.example.coolbox.mobile.app-main-56:/drawable/ic_food_mango.png"
+    },
+    {
+        "merged": "com.example.coolbox.mobile.app-merged_res-54:/drawable_border_normal.xml.flat",
+        "source": "com.example.coolbox.mobile.app-main-56:/drawable/border_normal.xml"
+    },
+    {
+        "merged": "com.example.coolbox.mobile.app-merged_res-54:/drawable_ic_food_broccoli.png.flat",
+        "source": "com.example.coolbox.mobile.app-main-56:/drawable/ic_food_broccoli.png"
+    },
+    {
+        "merged": "com.example.coolbox.mobile.app-merged_res-54:/drawable_ic_food_chicken.png.flat",
+        "source": "com.example.coolbox.mobile.app-main-56:/drawable/ic_food_chicken.png"
+    },
+    {
+        "merged": "com.example.coolbox.mobile.app-merged_res-54:/mipmap-xxxhdpi_ic_launcher.webp.flat",
+        "source": "com.example.coolbox.mobile.app-main-56:/mipmap-xxxhdpi/ic_launcher.webp"
+    },
+    {
+        "merged": "com.example.coolbox.mobile.app-merged_res-54:/drawable_ic_food_beer.png.flat",
+        "source": "com.example.coolbox.mobile.app-main-56:/drawable/ic_food_beer.png"
+    },
+    {
+        "merged": "com.example.coolbox.mobile.app-merged_res-54:/drawable_ic_food_lettuce.png.flat",
+        "source": "com.example.coolbox.mobile.app-main-56:/drawable/ic_food_lettuce.png"
+    },
+    {
+        "merged": "com.example.coolbox.mobile.app-merged_res-54:/drawable_ic_food_beef.png.flat",
+        "source": "com.example.coolbox.mobile.app-main-56:/drawable/ic_food_beef.png"
+    },
+    {
+        "merged": "com.example.coolbox.mobile.app-merged_res-54:/xml_data_extraction_rules.xml.flat",
+        "source": "com.example.coolbox.mobile.app-main-56:/xml/data_extraction_rules.xml"
+    },
+    {
+        "merged": "com.example.coolbox.mobile.app-merged_res-54:/drawable_ic_food_crab.png.flat",
+        "source": "com.example.coolbox.mobile.app-main-56:/drawable/ic_food_crab.png"
+    },
+    {
+        "merged": "com.example.coolbox.mobile.app-merged_res-54:/mipmap-hdpi_ic_launcher.webp.flat",
+        "source": "com.example.coolbox.mobile.app-main-56:/mipmap-hdpi/ic_launcher.webp"
+    },
+    {
+        "merged": "com.example.coolbox.mobile.app-merged_res-54:/drawable_bg_btn_rounded_error.xml.flat",
+        "source": "com.example.coolbox.mobile.app-main-56:/drawable/bg_btn_rounded_error.xml"
+    },
+    {
+        "merged": "com.example.coolbox.mobile.app-merged_res-54:/mipmap-hdpi_ic_launcher_round.webp.flat",
+        "source": "com.example.coolbox.mobile.app-main-56:/mipmap-hdpi/ic_launcher_round.webp"
+    },
+    {
+        "merged": "com.example.coolbox.mobile.app-merged_res-54:/drawable_ic_food_watermelon.png.flat",
+        "source": "com.example.coolbox.mobile.app-main-56:/drawable/ic_food_watermelon.png"
+    },
+    {
+        "merged": "com.example.coolbox.mobile.app-merged_res-54:/drawable_ic_food_yogurt.png.flat",
+        "source": "com.example.coolbox.mobile.app-main-56:/drawable/ic_food_yogurt.png"
+    },
+    {
+        "merged": "com.example.coolbox.mobile.app-merged_res-54:/drawable_bg_item_near.xml.flat",
+        "source": "com.example.coolbox.mobile.app-main-56:/drawable/bg_item_near.xml"
+    },
+    {
+        "merged": "com.example.coolbox.mobile.app-merged_res-54:/drawable_ic_food_shrimp.png.flat",
+        "source": "com.example.coolbox.mobile.app-main-56:/drawable/ic_food_shrimp.png"
+    },
+    {
+        "merged": "com.example.coolbox.mobile.app-merged_res-54:/drawable_bg_item_expired.xml.flat",
+        "source": "com.example.coolbox.mobile.app-main-56:/drawable/bg_item_expired.xml"
+    },
+    {
+        "merged": "com.example.coolbox.mobile.app-merged_res-54:/drawable_ic_food_tomato.png.flat",
+        "source": "com.example.coolbox.mobile.app-main-56:/drawable/ic_food_tomato.png"
+    },
+    {
+        "merged": "com.example.coolbox.mobile.app-merged_res-54:/drawable_bg_item_normal.xml.flat",
+        "source": "com.example.coolbox.mobile.app-main-56:/drawable/bg_item_normal.xml"
+    },
+    {
+        "merged": "com.example.coolbox.mobile.app-merged_res-54:/drawable_ic_food_pork.png.flat",
+        "source": "com.example.coolbox.mobile.app-main-56:/drawable/ic_food_pork.png"
+    },
+    {
+        "merged": "com.example.coolbox.mobile.app-merged_res-54:/drawable_ic_food_lemon.png.flat",
+        "source": "com.example.coolbox.mobile.app-main-56:/drawable/ic_food_lemon.png"
+    },
+    {
+        "merged": "com.example.coolbox.mobile.app-merged_res-54:/drawable_cat_drink.png.flat",
+        "source": "com.example.coolbox.mobile.app-main-56:/drawable/cat_drink.png"
+    },
+    {
+        "merged": "com.example.coolbox.mobile.app-merged_res-54:/drawable_ic_food_green_apple.png.flat",
+        "source": "com.example.coolbox.mobile.app-main-56:/drawable/ic_food_green_apple.png"
+    },
+    {
+        "merged": "com.example.coolbox.mobile.app-merged_res-54:/drawable_ic_food_strawberry.png.flat",
+        "source": "com.example.coolbox.mobile.app-main-56:/drawable/ic_food_strawberry.png"
+    },
+    {
+        "merged": "com.example.coolbox.mobile.app-merged_res-54:/drawable_border_near_expiry.xml.flat",
+        "source": "com.example.coolbox.mobile.app-main-56:/drawable/border_near_expiry.xml"
+    },
+    {
+        "merged": "com.example.coolbox.mobile.app-merged_res-54:/drawable_cat_cooked.png.flat",
+        "source": "com.example.coolbox.mobile.app-main-56:/drawable/cat_cooked.png"
+    },
+    {
+        "merged": "com.example.coolbox.mobile.app-merged_res-54:/drawable_ic_food_tangerine.png.flat",
+        "source": "com.example.coolbox.mobile.app-main-56:/drawable/ic_food_tangerine.png"
+    },
+    {
+        "merged": "com.example.coolbox.mobile.app-merged_res-54:/mipmap-xxhdpi_ic_launcher.webp.flat",
+        "source": "com.example.coolbox.mobile.app-main-56:/mipmap-xxhdpi/ic_launcher.webp"
+    },
+    {
+        "merged": "com.example.coolbox.mobile.app-merged_res-54:/mipmap-anydpi-v26_ic_launcher.xml.flat",
+        "source": "com.example.coolbox.mobile.app-main-56:/mipmap-anydpi-v26/ic_launcher.xml"
+    },
+    {
+        "merged": "com.example.coolbox.mobile.app-merged_res-54:/drawable_bg_btn_rounded.xml.flat",
+        "source": "com.example.coolbox.mobile.app-main-56:/drawable/bg_btn_rounded.xml"
+    },
+    {
+        "merged": "com.example.coolbox.mobile.app-merged_res-54:/drawable_ic_food_onion.png.flat",
+        "source": "com.example.coolbox.mobile.app-main-56:/drawable/ic_food_onion.png"
+    },
+    {
+        "merged": "com.example.coolbox.mobile.app-merged_res-54:/drawable_ic_food_cooked.png.flat",
+        "source": "com.example.coolbox.mobile.app-main-56:/drawable/ic_food_cooked.png"
+    },
+    {
+        "merged": "com.example.coolbox.mobile.app-merged_res-54:/xml_backup_rules.xml.flat",
+        "source": "com.example.coolbox.mobile.app-main-56:/xml/backup_rules.xml"
+    },
+    {
+        "merged": "com.example.coolbox.mobile.app-merged_res-54:/drawable_ic_launcher_background.xml.flat",
+        "source": "com.example.coolbox.mobile.app-main-56:/drawable/ic_launcher_background.xml"
+    },
+    {
+        "merged": "com.example.coolbox.mobile.app-merged_res-54:/mipmap-xhdpi_ic_launcher_round.webp.flat",
+        "source": "com.example.coolbox.mobile.app-main-56:/mipmap-xhdpi/ic_launcher_round.webp"
+    }
+]
