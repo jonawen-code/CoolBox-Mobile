@@ -1,3 +1,4 @@
+// Build: 2.0.0
 package com.example.coolbox.mobile.data
 
 import android.content.Context
@@ -33,6 +34,28 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        fun exportDatabase(context: Context) {
+            try {
+                val db = getDatabase(context)
+                db.openHelper.writableDatabase.query("PRAGMA wal_checkpoint(FULL)", arrayOf()).close()
+
+                val dbFile = context.getDatabasePath("coolbox_database")
+                if (!dbFile.exists()) return
+
+                val exportDir = android.os.Environment.getExternalStoragePublicDirectory("CoolBox")
+                if (!exportDir.exists()) exportDir.mkdirs()
+
+                val exportFile = java.io.File(exportDir, "sync.db")
+                dbFile.inputStream().use { input ->
+                    exportFile.outputStream().use { output ->
+                        input.copyTo(output)
+                    }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+
         val MIGRATION_4_5 = object : androidx.room.migration.Migration(4, 5) {
             override fun migrate(database: androidx.sqlite.db.SupportSQLiteDatabase) {
                 database.execSQL("ALTER TABLE food_items ADD COLUMN lastModifiedMs INTEGER NOT NULL DEFAULT 0")
@@ -46,3 +69,4 @@ abstract class AppDatabase : RoomDatabase() {
         }
     }
 }
+

@@ -1,21 +1,24 @@
+// Version: V3.0.0-Pre22
 package com.example.coolbox.mobile.util
 
 import android.content.Context
-import android.database.sqlite.SQLiteDatabase
 import android.util.Log
 import android.widget.Toast
+import com.example.coolbox.mobile.SettingsManager
 import com.example.coolbox.mobile.data.AppDatabase
 import com.example.coolbox.mobile.data.FoodEntity
-import java.io.File
-import java.io.FileInputStream
-import java.io.FileOutputStream
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
 import okhttp3.*
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
-import okhttp3.RequestBody.Companion.asRequestBody
-import java.io.IOException
+import okhttp3.RequestBody.Companion.toRequestBody
+import org.json.JSONObject
 import java.util.concurrent.TimeUnit
+import kotlinx.coroutines.*
 
 object CloudSyncManager {
+    @Volatile
+    private var isSyncing = false
 
     private val client = OkHttpClient.Builder()
         .connectTimeout(10, TimeUnit.SECONDS)
@@ -23,141 +26,160 @@ object CloudSyncManager {
         .writeTimeout(15, TimeUnit.SECONDS)
         .build()
 
+    private val gson = Gson()
+
+    // Phase 1: Upload (Push)
     fun uploadDatabase(context: Context, serverUrl: String, onComplete: (Boolean) -> Unit = {}) {
         val base = if (serverUrl.endsWith("/")) serverUrl.substring(0, serverUrl.length - 1) else serverUrl
+        val nasBase = if (base.contains("/coolbox")) base else "$base/coolbox"
+        
         Thread {
             try {
-                Log.d("CoolBoxSync", "Manual upload starting...")
+                Log.d("CoolBoxSync", "NAS Push starting: $nasBase")
                 
-                // Flush WAL
                 val db = AppDatabase.getDatabase(context)
-                db.openHelper.writableDatabase.query("PRAGMA wal_checkpoint(FULL)", emptyArray<Any>()).close()
+                val dao = db.foodDao()
+                val allItems = dao.getAllItemsSync()
+                // V3.0.0-Pre21: 取消增量过滤，确保全量上传
                 
-                // CRITICAL: Close DB before upload to ensure WAL is merged and file is safe to read
-                AppDatabase.closeDatabase()
-                Thread.sleep(200)
-
-                val currentDbFile = context.getDatabasePath("coolbox_database")
-                if (!currentDbFile.exists()) {
-                    onComplete(false); return@Thread
+                if (allItems.isEmpty()) {
+                    Log.d("CoolBoxSync", "No local items to push.")
+                    onComplete(true)
+                    return@Thread
                 }
 
-                val requestBody = currentDbFile.asRequestBody("application/octet-stream".toMediaTypeOrNull())
-                val request = Request.Builder().url(base).post(requestBody).cacheControl(CacheControl.FORCE_NETWORK).build()
+                val jsonContent = gson.toJson(allItems)
+                val timestamp = System.currentTimeMillis()
+                val filename = "sync_mobile_$timestamp.json"
+                
+                val requestBody = jsonContent.toRequestBody("application/json".toMediaTypeOrNull())
+                val request = Request.Builder()
+                    .url("$nasBase/sync/update")
+                    .header("X-Filename", filename)
+                    .post(requestBody)
+                    .cacheControl(CacheControl.FORCE_NETWORK)
+                    .build()
 
                 client.newCall(request).execute().use { response ->
-                    val success = response.isSuccessful
-                    onComplete(success)
+                    val bodyStr = response.body?.string() ?: ""
+                    val isJsonSuccess = try {
+                        JSONObject(bodyStr).optString("status") == "success"
+                    } catch(e: Exception) { false }
+
+                    if (response.isSuccessful && isJsonSuccess) {
+                        SettingsManager.setLastSyncMs(context, timestamp)
+                        Log.d("CoolBoxSync", "NAS Push success: $filename")
+                        onComplete(true)
+                    } else {
+                        val err = "NAS Push failed | Code: ${response.code} | URL: ${request.url} | Resp: $bodyStr"
+                        Log.e("CoolBoxSync", err)
+                        ToastHelper.show(context, "上传失败 (${response.code})\n请检查后端路径或权限")
+                        onComplete(false)
+                    }
                 }
             } catch (e: Exception) {
-                Log.e("CoolBoxSync", "Upload failed", e)
+                Log.e("CoolBoxSync", "NAS Push Exception | URL: $nasBase", e)
+                ToastHelper.show(context, "网络异常: ${e.localizedMessage}\n目标: $nasBase")
                 onComplete(false)
             }
         }.start()
     }
 
+    // Phase 2: Download (Pull) & Merge (V2.6.1 Hardened)
     fun syncBidirectional(context: Context, serverUrl: String, onComplete: (Boolean) -> Unit) {
+        if (isSyncing) return
+        isSyncing = true
+        
         val base = if (serverUrl.endsWith("/")) serverUrl.substring(0, serverUrl.length - 1) else serverUrl
-        Thread {
+        val nasBase = if (base.contains("/coolbox")) base else "$base/coolbox"
+        
+        // Use CoroutineScope for proper threading and cancellation
+        kotlinx.coroutines.MainScope().launch {
             try {
-                val request = Request.Builder().url(base).get().cacheControl(CacheControl.FORCE_NETWORK).build()
-                client.newCall(request).execute().use { response ->
-                    if (!response.isSuccessful) {
-                        onComplete(false); return@Thread
+                val db = AppDatabase.getDatabase(context)
+                val dao = db.foodDao()
+                
+                // 1. Get All Remote Items directly from /sync/list (Spec v1.2)
+                val allRemoteItems = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    val url = "$nasBase/sync/list"
+                    val listRequest = Request.Builder()
+                        .url(url)
+                        .get()
+                        .cacheControl(CacheControl.FORCE_NETWORK)
+                        .build()
+                        
+                    val items = mutableListOf<FoodEntity>()
+                    client.newCall(listRequest).execute().use { response ->
+                        if (response.isSuccessful) {
+                            val jsonStr = response.body?.string() ?: ""
+                            if (jsonStr.isNotBlank()) {
+                                val type = object : TypeToken<List<FoodEntity>>() {}.type
+                                try {
+                                    val remoteList: List<FoodEntity> = gson.fromJson(jsonStr, type) ?: emptyList()
+                                    items.addAll(remoteList.filterNotNull())
+                                } catch (e: Exception) {
+                                    Log.e("CoolBoxSync", "NAS Parse failed | URL: $url", e)
+                                }
+                            }
+                        } else {
+                            Log.e("CoolBoxSync", "NAS List failed | Code: ${response.code} | URL: $url")
+                        }
+                        Unit
                     }
-                    val tempFile = File(context.cacheDir, "remote_merge.db")
-                    response.body?.byteStream()?.use { input -> tempFile.outputStream().use { input.copyTo(it) } }
+                    items
+                }
 
-                    val mergedCount = mergeDatabases(context, tempFile)
-                    tempFile.delete()
-                    
-                    // Now UPLOAD the merged result
-                    uploadDatabase(context, serverUrl) { uploadSuccess ->
-                        android.os.Handler(android.os.Looper.getMainLooper()).post { 
-                            if (uploadSuccess) {
-                                Toast.makeText(context, "双向同步成功 (合并 $mergedCount 条)", Toast.LENGTH_SHORT).show()
+                // 3. One Transactional Merge on IO (雷区 1 修复)
+                var mergedCount = 0
+                if (allRemoteItems.isNotEmpty()) {
+                    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                        val localItems = dao.getAllItemsSync()
+                        val toUpdate = mutableListOf<FoodEntity>()
+                        
+                        val localMap = localItems.associateBy { it.id }
+                        
+                        allRemoteItems.forEach { remote ->
+                            val local = localMap[remote.id]
+                            if (local == null || remote.lastModifiedMs > local.lastModifiedMs) {
+                                toUpdate.add(remote)
+                                mergedCount++
+                            }
+                        }
+                        
+                        if (toUpdate.isNotEmpty()) {
+                            dao.insertItems(toUpdate) // Transactional batch insert
+                        }
+                    }
+                }
+
+                // 4. Final upload on IO
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    uploadDatabase(context, serverUrl) { success ->
+                        kotlinx.coroutines.MainScope().launch {
+                            if (success) {
+                                Toast.makeText(context, "双向同步 V2.6.1 成功 (导入 $mergedCount 条)", Toast.LENGTH_SHORT).show()
                                 onComplete(true)
                             } else {
-                                Toast.makeText(context, "合并完成，但上传 NAS 失败", Toast.LENGTH_SHORT).show()
-                                onComplete(false)
+                                Toast.makeText(context, "同步成功，但备份到服务器失败", Toast.LENGTH_SHORT).show()
+                                onComplete(true)
                             }
                         }
                     }
                 }
+
             } catch (e: Exception) {
-                Log.e("CoolBoxSync", "Merge failed", e)
+                Log.e("CoolBoxSync", "V2.6.1 Sync Failed", e)
+                val errorMsg = when (e) {
+                    is java.net.SocketTimeoutException -> "网络请求超时 (熔断)，请稍后重试"
+                    is java.net.ConnectException -> "无法连接到服务器"
+                    else -> "同步异常: ${e.localizedMessage}"
+                }
+                Toast.makeText(context, errorMsg, Toast.LENGTH_LONG).show()
                 onComplete(false)
+            } finally {
+                isSyncing = false
             }
-        }.start()
-    }
-
-    private fun mergeDatabases(context: Context, remoteFile: File): Int {
-        val localDb = AppDatabase.getDatabase(context)
-        val remoteDb = SQLiteDatabase.openDatabase(remoteFile.path, null, SQLiteDatabase.OPEN_READONLY)
-        var count = 0
-        try {
-            val cursor = remoteDb.rawQuery("SELECT * FROM food_items", null)
-            val remoteItems = mutableListOf<FoodEntity>()
-            
-            // Robust column index finding
-            val idxId = cursor.getColumnIndex("id")
-            val idxIcon = cursor.getColumnIndex("icon")
-            val idxName = cursor.getColumnIndex("name")
-            val idxFridge = cursor.getColumnIndex("fridgeName")
-            val idxInput = cursor.getColumnIndex("inputDateMs")
-            val idxExpiry = cursor.getColumnIndex("expiryDateMs")
-            val idxQty = cursor.getColumnIndex("quantity")
-            val idxWeight = cursor.getColumnIndex("weightPerPortion")
-            val idxPortions = cursor.getColumnIndex("portions")
-            val idxCat = cursor.getColumnIndex("category")
-            val idxUnit = cursor.getColumnIndex("unit")
-            val idxRemark = cursor.getColumnIndex("remark")
-            val idxModified = cursor.getColumnIndex("lastModifiedMs")
-            val idxDeleted = cursor.getColumnIndex("isDeleted")
-
-            if (cursor.moveToFirst()) {
-                do {
-                    remoteItems.add(FoodEntity(
-                        id = cursor.getString(idxId),
-                        icon = if (idxIcon >= 0) cursor.getString(idxIcon) else "",
-                        name = cursor.getString(idxName),
-                        fridgeName = cursor.getString(idxFridge),
-                        inputDateMs = cursor.getLong(idxInput),
-                        expiryDateMs = cursor.getLong(idxExpiry),
-                        quantity = cursor.getDouble(idxQty),
-                        weightPerPortion = cursor.getDouble(idxWeight),
-                        portions = cursor.getInt(idxPortions),
-                        category = cursor.getString(idxCat),
-                        unit = cursor.getString(idxUnit),
-                        remark = if (idxRemark >= 0) cursor.getString(idxRemark) else "",
-                        lastModifiedMs = if (idxModified >= 0) cursor.getLong(idxModified) else 0L,
-                        isDeleted = if (idxDeleted >= 0) cursor.getInt(idxDeleted) == 1 else false
-                    ))
-                } while (cursor.moveToNext())
-            }
-            cursor.close()
-
-            val localDao = localDb.foodDao()
-            val localItems = localDao.getAllItemsSync()
-            
-            val toUpdate = mutableListOf<FoodEntity>()
-            remoteItems.forEach { remote ->
-                val local = localItems.find { it.id == remote.id }
-                if (local == null || remote.lastModifiedMs > local.lastModifiedMs) {
-                    toUpdate.add(remote)
-                    count++
-                }
-            }
-            
-            if (toUpdate.isNotEmpty()) {
-                kotlinx.coroutines.runBlocking {
-                    localDao.insertItems(toUpdate)
-                }
-            }
-        } finally {
-            remoteDb.close()
         }
-        return count
     }
 }
 
@@ -168,3 +190,4 @@ object ToastHelper {
         }
     }
 }
+// Version: V3.0.0-Pre22

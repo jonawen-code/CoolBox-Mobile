@@ -10,8 +10,8 @@ android {
         applicationId "com.example.coolbox.mobile"
         minSdk 23
         targetSdk 34
-        versionCode 29
-        versionName "v1.0.29"
+        versionCode 39
+        versionName "V3.0.0-Pre22"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         
@@ -24,10 +24,11 @@ android {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            signingConfig signingConfigs.debug
         }
         applicationVariants.all { variant ->
             variant.outputs.all {
-                outputFileName = "CoolBox-${variant.versionName}.apk"
+                outputFileName = "CoolBoxMobile_v${variant.versionName}.apk"
             }
         }
     }
@@ -72,8 +73,9 @@ dependencies {
     // 移除离线引擎降低体积
     // implementation files('libs/sherpa-onnx-1.12.28.aar')
     
-    // Network
+    // Network & Serialization
     implementation 'com.squareup.okhttp3:okhttp:4.11.0'
+    implementation 'com.google.code.gson:gson:2.10.1' // Version: V2.0
     
     testImplementation 'junit:junit:4.13.2'
     androidTestImplementation 'androidx.test.ext:junit:1.1.5'

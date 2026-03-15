@@ -13,7 +13,8 @@ data class ParsedResult(
     var expiryMs: Long = 0L,
     var remark: String = "",
     var portions: Int = 1,
-    var isQuery: Boolean = false
+    var isQuery: Boolean = false,
+    var category: String = "未分类"
 )
 
 object NlpParser {
@@ -60,8 +61,10 @@ object NlpParser {
 
         // B. Extract Location (High Priority Stripping)
         val locationKeywords = listOf(
+            "冰柜 第一层", "冰柜 第二层", "冰柜 第三层", "冰柜 第1层", "冰柜 第2层", "冰柜 第3层",
             "冰柜第一层", "冰柜第二层", "冰柜第三层", "冰柜第1层", "冰柜第2层", "冰柜第3层",
-            "冰柜上层", "冰柜下层", "大冰箱冷藏室", "大冰箱冷冻室", "大冰箱第一层", "大冰箱第二层",
+            "冰柜上层", "冰柜下层", "大冰箱 冷藏室", "大冰箱 冷冻室", "大冰箱 第一层", "大冰箱 第二层",
+            "大冰箱冷藏室", "大冰箱冷冻室", "大冰箱第一层", "大冰箱第二层",
             "第一层", "第二层", "第三层", "第四层", "第1层", "第2层", "第3层", "第4层",
             "冷藏室", "冷冻室", "保鲜层", "冰柜", "大冰箱", "正面", "侧门", "侧壁"
         )
@@ -126,10 +129,21 @@ object NlpParser {
             result.remark = if (words.size > 1) words.drop(1).joinToString(" ") else ""
         }
 
-        // Final cleanup for Food Name
+        // 3. Final cleanup for Food Name
         result.name = result.name.removeSuffix("的").removePrefix("买了").trim()
         if (result.name.isEmpty()) result.name = "未知食品"
         
+        // 4. Heuristic Category assignment
+        val meatKeywords = listOf("肉", "排骨", "鸡", "鱼", "虾", "蟹")
+        val vegKeywords = listOf("菜", "瓜", "豆", "茄", "椒")
+        val drinkKeywords = listOf("奶", "汁", "水", "酒", "汽水")
+        
+        when {
+            meatKeywords.any { result.name.contains(it) } -> result.category = "肉蛋水产"
+            vegKeywords.any { result.name.contains(it) } -> result.category = "蔬菜水果"
+            drinkKeywords.any { result.name.contains(it) } -> result.category = "奶品饮料"
+        }
+
         // Safety: If name is too long, it's likely a sentence that failed parsing
         if (result.name.length > 10) {
             result.name = result.name.take(10)

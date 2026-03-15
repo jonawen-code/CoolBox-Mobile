@@ -1,3 +1,4 @@
+// Build: 2.0.0
 package com.example.coolbox.mobile.data
 
 import androidx.room.*
@@ -11,6 +12,7 @@ interface FoodDao {
     @Query("SELECT * FROM food_items")
     fun getAllItemsSync(): List<FoodEntity>
 
+    @Transaction
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertItems(items: List<FoodEntity>)
 
@@ -22,6 +24,9 @@ interface FoodDao {
 
     @Query("SELECT * FROM food_items WHERE name LIKE '%' || :query || '%' AND isDeleted = 0")
     fun searchFood(query: String): List<FoodEntity>
+
+    @Query("UPDATE food_items SET icon = :defaultIcon, lastModifiedMs = :timestamp WHERE icon IS NULL OR icon = ''")
+    suspend fun migrateEmptyIcons(defaultIcon: String, timestamp: Long)
 
     @Delete
     suspend fun hardDelete(item: FoodEntity)
