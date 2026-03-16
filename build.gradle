@@ -1,16 +1,20 @@
-// Top-level build file where you can add configuration options common to all sub-projects/modules.
+// Top-level build file: 物理升级 Kotlin 插件版本，打通 Kapt 访问权限
 buildscript {
     repositories {
         google()
         mavenCentral()
     }
     dependencies {
-        classpath "com.android.tools.build:gradle:7.4.2"
-        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:1.8.10"
+        // 核心：保持 AGP 8.13.2 稳定
+        classpath 'com.android.tools.build:gradle:8.13.2'
+
+        // 关键修复：升级至 1.9.10。1.8.10 不支持 JDK 17+ 的模块化隔离协议
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:1.9.10"
     }
 }
 
-task clean(type: Delete) {
+// 修正 AGP 8.x 下的 clean 任务语法
+tasks.register('clean', Delete) {
     delete rootProject.buildDir
 }
 

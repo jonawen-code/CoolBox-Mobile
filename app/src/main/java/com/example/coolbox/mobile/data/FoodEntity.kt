@@ -1,11 +1,9 @@
 package com.example.coolbox.mobile.data
 
-import androidx.room.Entity
-import androidx.room.PrimaryKey
+import com.google.gson.annotations.SerializedName
 
-@Entity(tableName = "food_items")
 data class FoodEntity(
-    @PrimaryKey val id: String = "",
+    val id: String = "",
     val icon: String = "ic_food_default",
     val name: String = "未命名食品",
     val fridgeName: String = "未知位置",
@@ -16,7 +14,12 @@ data class FoodEntity(
     val portions: Int = 1,
     val category: String = "未分类",
     val unit: String = "个",
-    val remark: String = "",
+    
+    // 【核心补丁】：强行把 JSON 里的 "remark" 塞给这里的 note
+    // 如果你确定 NAS 吐出来的是别的词（比如 "memo" 或 "description"），直接改引号里的词就行！
+    @SerializedName("remark") 
+    val note: String = "",
+    
     val lastModifiedMs: Long = System.currentTimeMillis(),
     val isDeleted: Boolean = false
 )
