@@ -10,8 +10,8 @@ android {
         applicationId "com.example.coolbox.mobile"
         minSdk 23
         targetSdk 34
-        versionCode 39
-        versionName "V3.0.0-Pre22"
+        versionCode 43
+        versionName "V3.0.0-Pre26"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         

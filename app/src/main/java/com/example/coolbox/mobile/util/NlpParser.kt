@@ -6,6 +6,7 @@ import java.util.Date
 import java.util.Locale
 
 data class ParsedResult(
+    var id: String? = null,
     var name: String = "",
     var quantity: Double = 1.0,
     var unit: String = "个",

@@ -87,4 +87,27 @@ object SettingsManager {
     
     fun getLastSyncMs(context: Context): Long = getPrefs(context).getLong(KEY_LAST_SYNC_MS, 0L)
     fun setLastSyncMs(context: Context, timeMs: Long) = getPrefs(context).edit().putLong(KEY_LAST_SYNC_MS, timeMs).apply()
+
+    fun normalizeAllKeys(context: Context) {
+        val fridges = getFridges(context)
+        val caps = getFridgeCaps(context)
+        
+        val normalizedFridges = fridges.map { com.example.coolbox.mobile.util.NaturalSortUtils.normalizeHierarchyFormat(it) }.distinct()
+        val normalizedCaps = caps.mapKeys { com.example.coolbox.mobile.util.NaturalSortUtils.normalizeHierarchyFormat(it.key) }
+        
+        setFridges(context, normalizedFridges)
+        setFridgeCaps(context, normalizedCaps)
+    }
+
+    /**
+     * V3.0.0-Pre26: Clean up legacy keys after a successful takeover to ensure no shadow data exists.
+     */
+    fun clearLegacyKeys(context: Context) {
+        getPrefs(context).edit().apply {
+            remove(OLD_KEY_FRIDGES)
+            remove(OLD_KEY_FRIDGE_BASES)
+            remove(OLD_KEY_CATEGORIES)
+            remove(OLD_KEY_FRIDGE_CAPS)
+        }.apply()
+    }
 }

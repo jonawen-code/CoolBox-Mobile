@@ -1,4 +1,4 @@
-// Version: V3.0.0-Pre22
+// Version: V3.0.0-Pre23
 package com.example.coolbox.mobile.util
 
 import android.content.Context
@@ -27,6 +27,99 @@ object CloudSyncManager {
         .build()
 
     private val gson = Gson()
+
+    fun uploadConfig(context: Context, serverUrl: String, onComplete: (Boolean) -> Unit = {}) {
+        val base = if (serverUrl.endsWith("/")) serverUrl.substring(0, serverUrl.length - 1) else serverUrl
+        val nasBase = if (base.contains("/coolbox")) base else "$base/coolbox"
+        
+        val fridgeList = SettingsManager.getFridges(context)
+        val categoryList = SettingsManager.getCategories(context)
+        val caps = SettingsManager.getFridgeCaps(context)
+
+        val configData = JSONObject().apply {
+            val fArray = org.json.JSONArray()
+            fridgeList.distinct().forEach { name ->
+                fArray.put(JSONObject().apply {
+                    put("id", name)
+                    put("name", name)
+                    put("layers", "3")
+                    put("capabilities", try { org.json.JSONArray(gson.toJson(caps[name] ?: "冷藏")) } catch(e: Exception) { org.json.JSONArray() })
+                    put("lastModifiedMs", System.currentTimeMillis())
+                })
+            }
+            put("fridges", fArray)
+            
+            val cArray = org.json.JSONArray()
+            categoryList.distinct().forEach { name ->
+                cArray.put(JSONObject().apply {
+                    put("id", name)
+                    put("name", name)
+                    put("lastModifiedMs", System.currentTimeMillis())
+                })
+            }
+            put("categories", cArray)
+        }
+
+        val body = configData.toString().toRequestBody("application/json".toMediaTypeOrNull())
+        val request = Request.Builder().url("$nasBase/sync/config").post(body).build()
+
+        client.newCall(request).enqueue(object : Callback {
+            override fun onFailure(call: Call, e: java.io.IOException) { onComplete(false) }
+            override fun onResponse(call: Call, response: Response) { onComplete(response.isSuccessful) }
+        })
+    }
+
+    fun downloadConfig(context: Context, serverUrl: String, onComplete: (Boolean) -> Unit) {
+        kotlinx.coroutines.MainScope().launch {
+            val result = downloadConfigSuspend(context, serverUrl)
+            onComplete(result)
+        }
+    }
+
+    suspend fun downloadConfigSuspend(context: Context, serverUrl: String): Boolean = withContext(Dispatchers.IO) {
+        val base = if (serverUrl.endsWith("/")) serverUrl.substring(0, serverUrl.length - 1) else serverUrl
+        val nasBase = if (base.contains("/coolbox")) base else "$base/coolbox"
+        val request = Request.Builder()
+            .url("$nasBase/sync/config")
+            .get()
+            .cacheControl(CacheControl.FORCE_NETWORK)
+            .build()
+
+        try {
+            client.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) return@withContext false
+                val body = response.body?.string() ?: ""
+                val obj = JSONObject(body)
+                val fridges = obj.getJSONArray("fridges")
+                val categories = obj.getJSONArray("categories")
+                
+                val fList = mutableListOf<String>()
+                for(i in 0 until fridges.length()) {
+                    val rawName = fridges.getJSONObject(i).getString("name")
+                    fList.add(NaturalSortUtils.normalizeHierarchyFormat(rawName))
+                }
+                
+                val cList = mutableListOf<String>()
+                for(i in 0 until categories.length()) cList.add(categories.getJSONObject(i).getString("name"))
+                
+                // Bases extraction
+                val bList = fList.map { 
+                    if (it.contains(" - ")) it.split(" - ")[0] else it 
+                }.distinct()
+
+                SettingsManager.setFridges(context, fList)
+                SettingsManager.setFridgeBases(context, bList)
+                SettingsManager.setCategories(context, cList)
+                
+                // V3.0.0-Pre26: Immediate normalization after download
+                SettingsManager.normalizeAllKeys(context)
+                true
+            }
+        } catch (e: Exception) {
+            Log.e("CoolBoxSync", "downloadConfigSuspend failed", e)
+            false
+        }
+    }
 
     // Phase 1: Upload (Push)
     fun uploadDatabase(context: Context, serverUrl: String, onComplete: (Boolean) -> Unit = {}) {

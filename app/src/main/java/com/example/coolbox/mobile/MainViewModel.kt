@@ -1,5 +1,5 @@
-// Version: V3.0.0-Pre22
-// Build: 2.7.3 Direct Pull
+// Version: V3.0.0-Pre23
+// Build: 2.7.4 UI Alignment
 package com.example.coolbox.mobile
 
 import android.app.Application
@@ -15,6 +15,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
+import com.example.coolbox.mobile.util.NaturalSortUtils.sortedNaturally
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -102,15 +104,20 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun refreshDynamicData() {
         viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            // V3.0.0-Pre25: Force normalize config before mapping to ensure consistency
+            SettingsManager.normalizeAllKeys(getApplication())
+            
             val bases = SettingsManager.getFridgeBases(getApplication())
             val allFullNames = SettingsManager.getFridges(getApplication())
             
             val mapping = LinkedHashMap<String, MutableList<String>>()
             bases.forEach { base ->
                 val zones = allFullNames.filter { it.startsWith(base) }
-                    .map { it.removePrefix(base).trim() }
+                    .map { it.removePrefix(base).replace(Regex("^\\s*-\\s*"), "").trim() }
                     .filter { it.isNotEmpty() }
-                mapping[base] = zones.toMutableList()
+                    .sortedBy { com.example.coolbox.mobile.util.NaturalSortUtils.normalizeForSort(it) } // Double sort safety
+                    .sortedNaturally()
+                mapping[base] = zones.toMutableList() // Always preserve the base
             }
             withContext(kotlinx.coroutines.Dispatchers.Main) {
                 _deviceZoneMap.value = mapping
@@ -135,47 +142,79 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun refreshConfig() {
+        val application = getApplication<Application>()
+        _fridges.value = SettingsManager.getFridges(application)
+        _categories.value = SettingsManager.getCategories(application)
+        _fridgeBases.value = SettingsManager.getFridgeBases(application)
+        _dbVersion.value += 1 // Architect's requirement: Trigger UI re-sort
+    }
+
     fun takeoverFromNas(serverUrl: String, onComplete: (Boolean) -> Unit) {
         if (_isRefreshing.value) return
         _isRefreshing.value = true
         
-        SettingsManager.setServerUrl(getApplication(), serverUrl)
+        val context = getApplication<Application>()
+        SettingsManager.setServerUrl(context, serverUrl)
         
-        com.example.coolbox.mobile.util.CloudSyncManager.syncBidirectional(getApplication(), serverUrl) { success ->
-            if (success) {
-                viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
-                    val dao = AppDatabase.getDatabase(getApplication()).foodDao()
-                    val allItems = dao.getAllItemsSync()
+        viewModelScope.launch {
+            try {
+                // V3.0.0-Pre26: Strict Coroutine Atomic Flow
+                // Step 1: Download full configuration first (Suspend)
+                val configSuccess = com.example.coolbox.mobile.util.CloudSyncManager.downloadConfigSuspend(context, serverUrl)
+                
+                if (configSuccess) {
+                    // Step 2: Push to local StateFlows immediately
+                    withContext(Dispatchers.Main) { refreshConfig() }
                     
-                    // Extract unique locations and categories
-                    val locations = allItems.map { it.fridgeName }.filter { it.isNotBlank() }.distinct()
-                    val categories = allItems.map { it.category }.filter { it.isNotBlank() }.distinct()
-                    
-                    // Extrapolate base names (e.g., "大冰箱 - 冷藏" -> "大冰箱")
-                    val bases = locations.map { 
-                        if (it.contains(" - ")) it.split(" - ")[0] else it 
-                    }.distinct()
-                    
-                    // Default capabilities
-                    val caps = locations.associateWith { loc ->
-                        if (loc.contains("冻")) "冷冻" else "冷藏"
+                    // Step 3: Now sync the actual items (Wait for completion)
+                    // Note: CloudSyncManager.syncBidirectional is still callback-based in some parts, 
+                    // but we call it here and wait for its completion logic.
+                    // Improving: We'll wrap the item sync in a suspend context as well if needed, 
+                    // but for now we follow the atomic chain.
+                    com.example.coolbox.mobile.util.CloudSyncManager.syncBidirectional(context, serverUrl) { itemsSuccess ->
+                        viewModelScope.launch {
+                            _isSetupComplete.value = true
+                            refreshConfig() // Refresh again after items arrive to update mapping
+                            refreshDynamicData()
+                            SettingsManager.clearLegacyKeys(context) // Final cleanup
+                            _isRefreshing.value = false
+                            onComplete(itemsSuccess)
+                        }
                     }
-                    
-                    withContext(kotlinx.coroutines.Dispatchers.Main) {
-                        completeSetup(
-                            finalLocations = locations,
-                            baseNames = bases,
-                            capabilities = caps,
-                            newCategories = categories.ifEmpty { listOf("肉蛋水产", "奶品饮料", "速冻食品", "蔬菜水果", "熟食剩菜") },
-                            syncUrl = serverUrl
-                        )
-                        onComplete(true)
+                } else {
+                    // Fallback to legacy extraction if config pull fails
+                    com.example.coolbox.mobile.util.CloudSyncManager.syncBidirectional(context, serverUrl) { itemsSuccess ->
+                        viewModelScope.launch {
+                            if (itemsSuccess) {
+                                withContext(Dispatchers.IO) {
+                                    val dao = AppDatabase.getDatabase(context).foodDao()
+                                    val allItems = dao.getAllItemsSync()
+                                    val locations = allItems.map { it.fridgeName }.filter { it.isNotBlank() }.distinct()
+                                    val categories = allItems.map { it.category }.filter { it.isNotBlank() }.distinct()
+                                    val bases = locations.map { if (it.contains(" - ")) it.split(" - ")[0] else it }.distinct()
+                                    val caps = locations.associateWith { if (it.contains("冻")) "冷冻" else "冷藏" }
+                                    withContext(Dispatchers.Main) {
+                                        completeSetup(
+                                            finalLocations = locations,
+                                            baseNames = bases,
+                                            capabilities = caps,
+                                            newCategories = categories.ifEmpty { listOf("肉蛋水产", "奶品饮料", "速冻食品", "蔬菜水果", "熟食剩菜") },
+                                            syncUrl = serverUrl
+                                        )
+                                    }
+                                }
+                            }
+                            _isRefreshing.value = false
+                            onComplete(itemsSuccess)
+                        }
                     }
                 }
-            } else {
+            } catch (e: Exception) {
+                Log.e("CoolBox", "Takeover failed", e)
+                _isRefreshing.value = false
                 onComplete(false)
             }
-            _isRefreshing.value = false
         }
     }
 
@@ -197,6 +236,20 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun clearParsedResult() {
         _parsedResult.value = null
+    }
+
+    fun editFood(entity: FoodEntity) {
+        _parsedResult.value = ParsedResult(
+            id = entity.id,
+            name = entity.name,
+            quantity = entity.quantity,
+            unit = entity.unit ?: "个",
+            location = entity.fridgeName,
+            expiryMs = entity.expiryDateMs,
+            remark = entity.remark,
+            portions = entity.portions,
+            category = entity.category
+        )
     }
 
     private val _iconMap = mapOf(
@@ -250,7 +303,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             val dao = AppDatabase.getDatabase(getApplication()).foodDao()
             val entity = FoodEntity(
-                id = UUID.randomUUID().toString(),
+                id = result.id ?: UUID.randomUUID().toString(), 
                 icon = getIconForName(result.name), 
                 name = result.name,
                 fridgeName = result.location,
@@ -369,9 +422,22 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 dao.insertItems(emojiUpdates)
             }
             
-            // V2.2 Icon migration
-            dao.migrateEmptyIcons("ic_food_default", System.currentTimeMillis())
+            // V3.0.0-Pre24: Full Configuration & Data Normalization Lock
+            SettingsManager.normalizeAllKeys(application)
             
+            val hierarchyUpdates = all.map { entity ->
+                val oldName = entity.fridgeName
+                val newName = com.example.coolbox.mobile.util.NaturalSortUtils.normalizeHierarchyFormat(oldName)
+                if (oldName != newName) {
+                    entity.copy(fridgeName = newName, lastModifiedMs = System.currentTimeMillis())
+                } else null
+            }.filterNotNull()
+            
+            if (hierarchyUpdates.isNotEmpty()) {
+                Log.d("MainViewModel", "Normalized ${hierarchyUpdates.size} hierarchy strings to standard [Device] - [Layer] format")
+                dao.insertItems(hierarchyUpdates)
+            }
+
             AppDatabase.exportDatabase(application)
             scheduleSync()
         }

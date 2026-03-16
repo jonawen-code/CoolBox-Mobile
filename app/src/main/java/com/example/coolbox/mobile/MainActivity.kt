@@ -1,4 +1,4 @@
-// Version: V3.0.0-Pre22
+// Version: V3.0.0-Pre23
 package com.example.coolbox.mobile
 
 import android.Manifest
@@ -69,6 +69,7 @@ import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.draw.clip
+import com.example.coolbox.mobile.util.NaturalSortUtils.sortedNaturally
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 
@@ -499,6 +500,10 @@ fun MainScreen(
 fun SettingsScreen(onBack: () -> Unit, viewModel: MainViewModel) {
     val context = LocalContext.current
     var serverUrl by remember { mutableStateOf(SettingsManager.getServerUrl(context)) }
+    var isEditing by remember { mutableStateOf(false) }
+    
+    val fridgeCount by viewModel.fridges.collectAsState()
+    val categories by viewModel.categories.collectAsState()
 
     Scaffold(
         topBar = {
@@ -508,24 +513,81 @@ fun SettingsScreen(onBack: () -> Unit, viewModel: MainViewModel) {
                     IconButton(onClick = onBack) {
                         Icon(Icons.Filled.ArrowBack, contentDescription = "返回")
                     }
+                },
+                actions = {
+                    if (!isEditing) {
+                        TextButton(onClick = { isEditing = true }) {
+                            Text("编辑配置", fontWeight = FontWeight.Bold)
+                        }
+                    } else {
+                        IconButton(onClick = { isEditing = false }) {
+                            Icon(Icons.Default.Close, contentDescription = "取消编辑")
+                        }
+                    }
                 }
             )
         }
     ) { paddingValues ->
-        BackHandler(onBack = onBack)
+        BackHandler(onBack = { if (isEditing) isEditing = false else onBack() })
         Column(
-            modifier = Modifier.fillMaxSize().padding(paddingValues).padding(16.dp)
+            modifier = Modifier.fillMaxSize().padding(paddingValues).padding(16.dp).verticalScroll(rememberScrollState())
         ) {
-            Text("远程同步与备份", style = MaterialTheme.typography.titleMedium)
-            Spacer(modifier = Modifier.height(8.dp))
-            OutlinedTextField(
-                value = serverUrl,
-                onValueChange = { serverUrl = it },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                label = { Text("例如: http://192.168.31.94:3000/coolbox") }
-            )
+            Text("远程同步与备份", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+            Spacer(modifier = Modifier.height(12.dp))
+            
+            if (isEditing) {
+                OutlinedTextField(
+                    value = serverUrl,
+                    onValueChange = { serverUrl = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    label = { Text("服务器地址 (Server URL)") },
+                    placeholder = { Text("http://192.168.31.94:3000/coolbox") },
+                    shape = RoundedCornerShape(12.dp)
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Button(
+                    onClick = { 
+                        SettingsManager.setServerUrl(context, serverUrl)
+                        isEditing = false
+                        Toast.makeText(context, "已保存配置", Toast.LENGTH_SHORT).show()
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text("保存服务器配置")
+                }
+            } else {
+                Surface(
+                    color = Color(0xFFF5F5F5),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text("当前服务器：", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+                        Text(serverUrl.ifEmpty { "未配置" }, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
+                    }
+                }
+            }
+            
             Spacer(modifier = Modifier.height(24.dp))
+            Text("设备与分类预览 (只读)", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+            Spacer(modifier = Modifier.height(12.dp))
+            
+            Surface(
+                color = Color(0xFFF5F5F5),
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text("存储温区数：${fridgeCount.size} 个", style = MaterialTheme.typography.bodyMedium)
+                    Text("温区分布：${fridgeCount.joinToString(", ")}", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text("现有分类：${categories.joinToString(", ")}", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                }
+            }
+
+            Spacer(modifier = Modifier.height(32.dp))
             
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedButton(
@@ -533,23 +595,26 @@ fun SettingsScreen(onBack: () -> Unit, viewModel: MainViewModel) {
                     onClick = { 
                         viewModel.syncAndRefresh() 
                         Toast.makeText(context, "开始同步...", Toast.LENGTH_SHORT).show()
-                    }
+                    },
+                    shape = RoundedCornerShape(12.dp)
                 ) {
-                    Text("开始同步")
+                    Text("立即手动同步")
                 }
                 OutlinedButton(
                     modifier = Modifier.weight(1f),
                     onClick = {
                         viewModel.toggleSetup(false)
                         onBack()
-                    }
+                    },
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.Red)
                 ) {
-                    Text("重置并配置设备")
+                    Text("重置初始化")
                 }
             }
             
-            Spacer(modifier = Modifier.height(32.dp))
-            Text("关于 CoolBox Mobile ${BuildConfig.VERSION_NAME}", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+            Spacer(modifier = Modifier.height(48.dp))
+            Text("关于 CoolBox Mobile ${BuildConfig.VERSION_NAME}", style = MaterialTheme.typography.bodySmall, color = Color.Gray, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
         }
     }
 }
@@ -705,7 +770,7 @@ fun EditFoodDialog(
                             trailingIcon = { IconButton(onClick = { showDeviceMenu = true }) { Text("▼") } }, isError = isDirty
                         )
                         DropdownMenu(expanded = showDeviceMenu, onDismissRequest = { showDeviceMenu = false }, modifier = Modifier.background(androidx.compose.ui.graphics.Color.White)) {
-                            allDevices.forEach { dev ->
+                            allDevices.sortedNaturally().forEach { dev ->
                                 val isSelected = (selectedDevice == dev)
                                 DropdownMenuItem(
                                     text = { Text(dev, color = if (isSelected) androidx.compose.ui.graphics.Color.White else androidx.compose.ui.graphics.Color.Black) },
@@ -727,7 +792,7 @@ fun EditFoodDialog(
                             trailingIcon = { IconButton(onClick = { if (!isDirty) showZoneMenu = true }) { Text("▼") } }, isError = isDirty
                         )
                         DropdownMenu(expanded = showZoneMenu, onDismissRequest = { showZoneMenu = false }, modifier = Modifier.background(androidx.compose.ui.graphics.Color.White)) {
-                            val zones = deviceZoneMap[selectedDevice] ?: emptyList()
+                            val zones = (deviceZoneMap[selectedDevice] ?: emptyList()).sortedNaturally()
                             zones.forEach { zone ->
                                 val isSelected = (selectedZone == zone)
                                 DropdownMenuItem(
@@ -1133,7 +1198,7 @@ fun TransferDialog(
         title = { Text("转移食品：${item.name}") },
         text = {
             Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
-                fridges.forEach { loc ->
+                fridges.sortedNaturally().forEach { loc ->
                     TextButton(
                         onClick = {
                             viewModel.transferItem(item, loc)
@@ -1175,7 +1240,8 @@ fun FoodItemCard(item: com.example.coolbox.mobile.data.FoodEntity?, viewModel: M
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 4.dp), // Reduced vertical spacing between cards
+            .padding(vertical = 4.dp)
+            .clickable { viewModel.editFood(item) }, // V3.0.0-Pre23: Click to edit
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = cardBg),
         border = BorderStroke(0.5.dp, cardBorder)
