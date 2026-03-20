@@ -265,7 +265,7 @@ fun InventoryItemCard(item: FoodEntity, fontScale: Float) {
     val sdf = remember { SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()) }
     val expiryStr = try { sdf.format(Date(item.expiryDateMs)) } catch (e: Exception) { "未知" }
     
-    val iconName = item.icon ?: "ic_food_default"
+    val iconName = item.icon.ifBlank { "ic_food_default" }
     val iconResId = remember(iconName) {
         context.resources.getIdentifier(iconName, "drawable", context.packageName)
     }
@@ -297,7 +297,7 @@ fun InventoryItemCard(item: FoodEntity, fontScale: Float) {
             Column(modifier = Modifier.weight(1f)) {
                 // 名称：保持粗体 (FontWeight.Bold)，字号动态缩放
                 Text(
-                    text = item.name ?: "未知物品", 
+                    text = item.name, 
                     fontWeight = FontWeight.Bold, 
                     fontSize = (16 * fontScale).sp
                 )
@@ -307,9 +307,9 @@ fun InventoryItemCard(item: FoodEntity, fontScale: Float) {
                     color = Color.Gray
                 )
                 
-                if (!item.note.isNullOrBlank()) {
+                if (item.remark.isNotBlank()) {
                     Text(
-                        text = "${item.note}", 
+                        text = item.remark, 
                         fontSize = (12 * fontScale).sp, 
                         color = Color(0xFFE65100),
                         maxLines = 2, 
@@ -326,7 +326,7 @@ fun InventoryItemCard(item: FoodEntity, fontScale: Float) {
             
             // 数量：保持粗体 (FontWeight.Bold)，字号动态缩放
             Text(
-                text = "${item.quantity.toInt()} ${item.unit}", 
+                text = "${if (item.quantity % 1.0 == 0.0) item.quantity.toInt() else "%.1f".format(item.quantity)} ${item.unit}", 
                 fontWeight = FontWeight.Bold, 
                 fontSize = (20 * fontScale).sp, 
                 color = Color(0xFF1A73E8)

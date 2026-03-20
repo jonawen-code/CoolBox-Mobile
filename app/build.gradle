@@ -1,6 +1,7 @@
 plugins {
     id 'com.android.application'
     id 'kotlin-android'
+    id 'com.google.devtools.ksp'
 }
 
 android {
@@ -11,8 +12,8 @@ android {
         applicationId = "com.example.coolbox.mobile"
         minSdk = 23
         targetSdk = 34
-        versionCode = 124
-        versionName = "V1.2-Pre28"
+        versionCode = 136
+        versionName = "V1.2-Pre40"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -57,4 +58,10 @@ dependencies {
     // Network & Serialization
     implementation 'com.squareup.okhttp3:okhttp:4.11.0'
     implementation 'com.google.code.gson:gson:2.10.1'
+
+    // Room
+    def room_version = "2.6.1"
+    implementation "androidx.room:room-runtime:$room_version"
+    ksp "androidx.room:room-compiler:$room_version"
+    implementation "androidx.room:room-ktx:$room_version"
 }

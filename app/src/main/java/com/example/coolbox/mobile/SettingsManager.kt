@@ -30,7 +30,7 @@ object SettingsManager {
     fun isSetupComplete(context: Context): Boolean = getPrefs(context).getBoolean(KEY_SETUP_COMPLETE, false)
     fun setSetupComplete(context: Context, complete: Boolean) = getPrefs(context).edit().putBoolean(KEY_SETUP_COMPLETE, complete).apply()
 
-    fun getServerUrl(context: Context): String = getPrefs(context).getString(KEY_SERVER_URL, "http://192.168.31.94:3000/coolbox") ?: "http://192.168.31.94:3000/coolbox"
+    fun getServerUrl(context: Context): String = getPrefs(context).getString(KEY_SERVER_URL, "http://192.168.31.94:3001/coolbox") ?: "http://192.168.31.94:3001/coolbox"
     fun setServerUrl(context: Context, url: String) = getPrefs(context).edit().putString(KEY_SERVER_URL, url).apply()
 
     // --- List Storage (JSON) ---

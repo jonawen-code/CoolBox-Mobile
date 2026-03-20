@@ -10,6 +10,7 @@ buildscript {
 
         // 关键修复：升级至 1.9.10。1.8.10 不支持 JDK 17+ 的模块化隔离协议
         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:1.9.10"
+        classpath "com.google.devtools.ksp:com.google.devtools.ksp.gradle.plugin:1.9.10-1.0.13"
     }
 }
 
