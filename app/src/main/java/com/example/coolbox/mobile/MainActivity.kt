@@ -10,7 +10,9 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Refresh
@@ -19,16 +21,21 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.coolbox.mobile.data.FoodEntity
 import java.text.SimpleDateFormat
@@ -85,11 +92,29 @@ fun MainScreen(viewModel: MainViewModel = viewModel()) {
     val prefs = context.getSharedPreferences("coolbox_settings", Context.MODE_PRIVATE)
     val isSetupComplete = prefs.getBoolean("setup_complete", false)
     
-    // 核心改动 1：读取本地保存的字体缩放比例，默认 1.0
     var fontScale by remember { mutableFloatStateOf(prefs.getFloat("font_scale", 1.0f)) }
     
     var showConfigDialog by remember { mutableStateOf(!isSetupComplete) }
     var showSortMenu by remember { mutableStateOf(false) } 
+
+    // 提醒弹窗相关状态
+    var showExpiryAlert by rememberSaveable { mutableStateOf(false) }
+    var hasShownAlertSinceEntry by remember { mutableStateOf(false) }
+
+    // 每次回到前台时重置弹窗标记
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                // 重启提醒标记，使其在 inventory 加载后能重新触发
+                hasShownAlertSinceEntry = false
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
 
     LaunchedEffect(Unit) {
         if (isSetupComplete) {
@@ -97,10 +122,39 @@ fun MainScreen(viewModel: MainViewModel = viewModel()) {
         }
     }
 
+    // 核心逻辑：监听 inventory 变化或已显示标记重置
+    LaunchedEffect(inventory, hasShownAlertSinceEntry) {
+        if (inventory.isNotEmpty() && !hasShownAlertSinceEntry) {
+            val now = System.currentTimeMillis()
+            val threeDaysMs = 3 * 24 * 60 * 60 * 1000L
+            
+            val expired = inventory.filter { it.expiryDateMs < now }
+            val nearExpiry = inventory.filter { item ->
+                val isExpired = item.expiryDateMs < now
+                if (isExpired) return@filter false
+                val shelfLife = item.expiryDateMs - item.inputDateMs
+                val isWithinLastQuarter = shelfLife > 0 && now >= item.expiryDateMs - (shelfLife / 4)
+                val isWithinThreeDays = now + threeDaysMs > item.expiryDateMs
+                isWithinLastQuarter || isWithinThreeDays
+            }
+            
+            if (expired.isNotEmpty() || nearExpiry.isNotEmpty()) {
+                showExpiryAlert = true
+            }
+            hasShownAlertSinceEntry = true
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("CoolBox Mobile", fontSize = 18.sp, color = Color.White) },
+                title = { 
+                    Row(verticalAlignment = Alignment.Bottom) {
+                        Text("CoolBox Mobile", fontWeight = FontWeight.Black, fontSize = 20.sp, color = Color.White)
+                        Spacer(Modifier.width(8.dp))
+                        Text("V1.2-Pre41", fontSize = 10.sp, color = Color.White.copy(alpha = 0.8f), modifier = Modifier.padding(bottom = 2.dp))
+                    }
+                },
                 actions = {
                     IconButton(onClick = { showConfigDialog = true }) {
                         Icon(Icons.Default.Settings, contentDescription = "Settings", tint = Color.White)
@@ -192,8 +246,7 @@ fun MainScreen(viewModel: MainViewModel = viewModel()) {
                     contentPadding = PaddingValues(top = 4.dp, bottom = 16.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    items(inventory) { item ->
-                        // 核心改动 2：把字体缩放比例传给列表项
+                    items(inventory, key = { it.id }) { item ->
                         InventoryItemCard(item, fontScale)
                     }
                 }
@@ -202,7 +255,6 @@ fun MainScreen(viewModel: MainViewModel = viewModel()) {
 
         if (showConfigDialog) {
             var urlInput by remember { mutableStateOf(SettingsManager.getServerUrl(context)) }
-            // 弹窗里专用的滑块状态
             var tempFontScale by remember { mutableFloatStateOf(fontScale) }
             
             AlertDialog(
@@ -222,13 +274,12 @@ fun MainScreen(viewModel: MainViewModel = viewModel()) {
                             modifier = Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 16.dp)
                         )
                         
-                        // 核心改动 3：增加字体大小调节滑块
                         Text("全局列表字体大小: ${String.format(Locale.getDefault(), "%.1f", tempFontScale)}x", fontSize = 14.sp, fontWeight = FontWeight.Bold)
                         Slider(
                             value = tempFontScale,
                             onValueChange = { tempFontScale = it },
                             valueRange = 0.8f..2.0f,
-                            steps = 11, // 支持 0.8 到 2.0 之间的 12 个档位
+                            steps = 11,
                             modifier = Modifier.fillMaxWidth()
                         )
                         Text("向左拖动变小，向右拖动变大", fontSize = 12.sp, color = Color.Gray)
@@ -237,13 +288,11 @@ fun MainScreen(viewModel: MainViewModel = viewModel()) {
                 confirmButton = {
                     Button(onClick = {
                         SettingsManager.setServerUrl(context, urlInput)
-                        // 保存字体大小设置
                         prefs.edit()
                             .putBoolean("setup_complete", true)
                             .putFloat("font_scale", tempFontScale)
                             .apply()
-                        fontScale = tempFontScale // 更新外层 UI
-                        
+                        fontScale = tempFontScale
                         showConfigDialog = false
                         viewModel.fetchInventory() 
                     }) { Text("保存并同步") }
@@ -255,10 +304,81 @@ fun MainScreen(viewModel: MainViewModel = viewModel()) {
                 }
             )
         }
+
+        if (showExpiryAlert) {
+            // 在这一层预先计算一次内容，确定义显示列表
+            val now = System.currentTimeMillis()
+            val threeDaysMs = 3 * 24 * 60 * 60 * 1000L
+            val expired = inventory.filter { it.expiryDateMs < now }
+            val nearExpiry = inventory.filter { item ->
+                val shelfLife = item.expiryDateMs - item.inputDateMs
+                val isExpired = item.expiryDateMs < now
+                if (isExpired) return@filter false
+                val isWithinLastQuarter = shelfLife > 0 && now >= item.expiryDateMs - (shelfLife / 4)
+                val isWithinThreeDays = now + threeDaysMs > item.expiryDateMs
+                isWithinLastQuarter || isWithinThreeDays
+            }
+
+            ExpiryAlertDialog(
+                expiredItems = expired,
+                nearExpiryItems = nearExpiry,
+                fontScale = fontScale,
+                onDismiss = { showExpiryAlert = false }
+            )
+        }
     }
 }
 
-// 核心改动 4：接收 fontScale 参数，所有的 sp 单位都乘以这个倍数
+@Composable
+fun ExpiryAlertDialog(
+    expiredItems: List<FoodEntity>,
+    nearExpiryItems: List<FoodEntity>,
+    fontScale: Float,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { 
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.Settings, contentDescription = null, tint = Color.Red, modifier = Modifier.size(32.dp))
+                Spacer(Modifier.width(10.dp))
+                Text("安全与临期提醒", fontWeight = FontWeight.Black, fontSize = (22 * fontScale).sp)
+            }
+        },
+        text = {
+            // 采用 Column + Scroll 确保在对话框内更稳健的布局
+            Column(modifier = Modifier.heightIn(max = 500.dp).verticalScroll(rememberScrollState())) {
+                if (expiredItems.isNotEmpty()) {
+                    Text("以下食品已过期，请勿食用：", color = Color(0xFFA20000), fontWeight = FontWeight.Black, fontSize = (18 * fontScale).sp)
+                    Spacer(Modifier.height(8.dp))
+                    expiredItems.forEach { item ->
+                        Text("• ${item.name} (${item.fridgeName})", color = Color(0xFFA20000), fontWeight = FontWeight.ExtraBold, fontSize = (16 * fontScale).sp, modifier = Modifier.padding(start = 8.dp))
+                    }
+                    Spacer(Modifier.height(24.dp))
+                }
+                
+                if (nearExpiryItems.isNotEmpty()) {
+                    Text("以下食品即将过期，请尽快食用：", color = Color(0xFFE65100), fontWeight = FontWeight.Black, fontSize = (18 * fontScale).sp)
+                    Spacer(Modifier.height(8.dp))
+                    nearExpiryItems.forEach { item ->
+                        Text("• ${item.name} (${item.fridgeName})", color = Color.Black, fontWeight = FontWeight.ExtraBold, fontSize = (16 * fontScale).sp, modifier = Modifier.padding(start = 8.dp))
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = onDismiss,
+                shape = RoundedCornerShape(24.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1A73E8)),
+                modifier = Modifier.padding(8.dp).fillMaxWidth()
+            ) {
+                Text("我知道了", fontSize = (18 * fontScale).sp, fontWeight = FontWeight.Black)
+            }
+        }
+    )
+}
+
 @Composable
 fun InventoryItemCard(item: FoodEntity, fontScale: Float) {
     val context = LocalContext.current
@@ -269,15 +389,52 @@ fun InventoryItemCard(item: FoodEntity, fontScale: Float) {
     val iconResId = remember(iconName) {
         context.resources.getIdentifier(iconName, "drawable", context.packageName)
     }
+
+    val currentTime = System.currentTimeMillis()
+    val shelfLife = item.expiryDateMs - item.inputDateMs
+    
+    val isExpired = currentTime > item.expiryDateMs
+    val isWithinLastQuarter = shelfLife > 0 && currentTime >= item.expiryDateMs - (shelfLife / 4)
+    val isWithinThreeDays = currentTime + 3 * 24 * 60 * 60 * 1000L > item.expiryDateMs
+    val isNearExpiry = !isExpired && (isWithinLastQuarter || isWithinThreeDays)
+    
+    val cardBg = when {
+        isExpired -> Color(0xFFA20000) // 深红
+        isNearExpiry -> Color(0xFFFFFACD) // 淡黄
+        else -> Color.White
+    }
+    
+    val primaryTextColor = when {
+        isExpired -> Color.White
+        else -> Color.Black
+    }
+    
+    val secondaryTextColor = when {
+        isExpired -> Color.White
+        else -> Color.Gray
+    }
+
+    val accentTextColor = when {
+        isExpired -> Color.White
+        isNearExpiry -> Color.Black
+        else -> Color(0xFF1A73E8)
+    }
+
+    val remarkTextColor = when {
+        isExpired -> Color.White
+        isNearExpiry -> Color.Black
+        else -> Color(0xFFE65100)
+    }
     
     Card(
         modifier = Modifier.fillMaxWidth().border(1.dp, Color(0xFFE0E0E0), RoundedCornerShape(12.dp)),
-        colors = CardDefaults.cardColors(containerColor = Color.White)
+        colors = CardDefaults.cardColors(containerColor = cardBg)
     ) {
         Row(modifier = Modifier.padding(16.dp).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             
-            // 核心改动 5：图标从 48.dp 放大到 60.dp (48 * 1.25)
-            val iconModifier = Modifier.size(60.dp).padding(end = 12.dp)
+            val iconModifier = Modifier
+                .size(60.dp)
+                .padding(end = 12.dp)
             
             if (iconResId != 0) {
                 Image(
@@ -289,29 +446,29 @@ fun InventoryItemCard(item: FoodEntity, fontScale: Float) {
                 Icon(
                     imageVector = Icons.Default.ShoppingCart,
                     contentDescription = "Fallback Icon",
-                    tint = Color.Gray,
+                    tint = secondaryTextColor,
                     modifier = iconModifier
                 )
             }
 
             Column(modifier = Modifier.weight(1f)) {
-                // 名称：保持粗体 (FontWeight.Bold)，字号动态缩放
                 Text(
                     text = item.name, 
-                    fontWeight = FontWeight.Bold, 
-                    fontSize = (16 * fontScale).sp
+                    fontWeight = FontWeight.Black, 
+                    fontSize = (16 * fontScale).sp,
+                    color = primaryTextColor
                 )
                 Text(
                     text = "${item.fridgeName} | ${item.category}", 
                     fontSize = (12 * fontScale).sp, 
-                    color = Color.Gray
+                    color = secondaryTextColor
                 )
                 
                 if (item.remark.isNotBlank()) {
                     Text(
                         text = item.remark, 
                         fontSize = (12 * fontScale).sp, 
-                        color = Color(0xFFE65100),
+                        color = remarkTextColor,
                         maxLines = 2, 
                         overflow = TextOverflow.Ellipsis
                     )
@@ -320,16 +477,15 @@ fun InventoryItemCard(item: FoodEntity, fontScale: Float) {
                 Text(
                     text = "保质期至: $expiryStr", 
                     fontSize = (12 * fontScale).sp, 
-                    color = if (item.expiryDateMs < System.currentTimeMillis()) Color.Red else Color(0xFF1A73E8)
+                    color = accentTextColor
                 )
             }
             
-            // 数量：保持粗体 (FontWeight.Bold)，字号动态缩放
             Text(
-                text = "${if (item.quantity % 1.0 == 0.0) item.quantity.toInt() else "%.1f".format(item.quantity)} ${item.unit}", 
-                fontWeight = FontWeight.Bold, 
+                text = "${if (item.quantity % 1.0 == 0.0) item.quantity.toInt() else String.format(Locale.getDefault(), "%.1f", item.quantity)} ${item.unit}", 
+                fontWeight = FontWeight.Black, 
                 fontSize = (20 * fontScale).sp, 
-                color = Color(0xFF1A73E8)
+                color = accentTextColor
             )
         }
     }

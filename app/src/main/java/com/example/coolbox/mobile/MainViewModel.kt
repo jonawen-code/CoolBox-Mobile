@@ -110,16 +110,25 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             rawItems
         } else {
             rawItems.filter {
-                it.name.lowercase().contains(query) || it.fridgeName.lowercase().contains(query)
+                it.name.lowercase().contains(query) || it.fridgeName.lowercase().contains(query) || it.remark.lowercase().contains(query)
             }
         }
 
+        val now = System.currentTimeMillis()
+        
+        // 1. 先进行用户指定的排序
         items = when (_currentSortMode.value) {
             SortMode.EXPIRY -> items.sortedBy { it.expiryDateMs }
             SortMode.LOCATION -> items.sortedBy { it.fridgeName }
             SortMode.NAME -> items.sortedBy { it.name }
         }
         
-        _inventory.value = if (_isAscending.value) items else items.reversed()
+        val sortedByPreference = if (_isAscending.value) items else items.reversed()
+
+        // 2. 强制过期食品置顶 (在用户排序的基础上)
+        val expired = sortedByPreference.filter { it.expiryDateMs < now }
+        val normal = sortedByPreference.filter { it.expiryDateMs >= now }
+        
+        _inventory.value = expired + normal
     }
 }
